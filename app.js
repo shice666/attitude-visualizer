@@ -270,26 +270,50 @@ function createDroneModel() {
     droneModel = new THREE.Group();
 
     // Materials
-    const bodyMat = new THREE.MeshStandardMaterial({ color: 0x1f2937, metalness: 0.8, roughness: 0.2 });
-    const armMat = new THREE.MeshStandardMaterial({ color: 0x374151, metalness: 0.7, roughness: 0.3 });
-    const propMat = new THREE.MeshStandardMaterial({ color: 0x3b82f6, transparent: true, opacity: 0.7 }); // Blue blades
-    const noseMat = new THREE.MeshStandardMaterial({ color: 0xff3b30, emissive: 0xff3b30, emissiveIntensity: 0.5 }); // Heading indicator LED (Red)
+    const bodyMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, metalness: 0.1, roughness: 0.4 }); // Bright white/platinum body
+    const armMat = new THREE.MeshStandardMaterial({ color: 0x475569, metalness: 0.8, roughness: 0.2 });  // Dark metallic arms
+    const motorMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: 0.9, roughness: 0.15 }); // Dark motor housing
+    const propMatFront = new THREE.MeshStandardMaterial({ color: 0xff6b00, roughness: 0.5, metalness: 0.1, transparent: true, opacity: 0.85 }); // Bright Orange front props
+    const propMatRear = new THREE.MeshStandardMaterial({ color: 0x00d0ff, roughness: 0.5, metalness: 0.1, transparent: true, opacity: 0.85 });  // Bright Cyan rear props
+    const noseMat = new THREE.MeshStandardMaterial({ color: 0xff3b30, emissive: 0xff3b30, emissiveIntensity: 0.8 }); // Heading indicator LED (Red)
 
     // 1. Central Body
-    const bodyGeom = new THREE.CylinderGeometry(0.4, 0.45, 0.15, 8);
+    const bodyGeom = new THREE.CylinderGeometry(0.42, 0.48, 0.18, 8);
     const body = new THREE.Mesh(bodyGeom, bodyMat);
     body.rotation.y = Math.PI / 8; // align visually
     droneModel.add(body);
 
-    // Heading indicator LED (Forward is +Z)
+    // Decorative top plate (dark gray for high-tech look)
+    const topPlateGeom = new THREE.CylinderGeometry(0.35, 0.38, 0.02, 8);
+    const topPlateMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, metalness: 0.5, roughness: 0.3 });
+    const topPlate = new THREE.Mesh(topPlateGeom, topPlateMat);
+    topPlate.position.y = 0.1;
+    topPlate.rotation.y = Math.PI / 8;
+    droneModel.add(topPlate);
+
+    // Heading indicator LED on top (Forward is +Z)
     const ledGeom = new THREE.SphereGeometry(0.08, 16, 16);
     const led = new THREE.Mesh(ledGeom, noseMat);
-    led.position.set(0, 0, 0.45);
+    led.position.set(0, 0.12, 0.4);
     droneModel.add(led);
 
+    // Camera gimbal underneath the nose pointing forward (+Z)
+    const gimbalGeom = new THREE.SphereGeometry(0.13, 16, 16);
+    const gimbalMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, metalness: 0.9, roughness: 0.1 });
+    const gimbal = new THREE.Mesh(gimbalGeom, gimbalMat);
+    gimbal.position.set(0, -0.2, 0.2); // Positioned forward and down
+    droneModel.add(gimbal);
+     
+    const lensGeom = new THREE.CylinderGeometry(0.07, 0.07, 0.1, 16);
+    lensGeom.rotateX(Math.PI / 2);
+    const lensMat = new THREE.MeshStandardMaterial({ color: 0x090d16, roughness: 0.1, metalness: 0.9 });
+    const lens = new THREE.Mesh(lensGeom, lensMat);
+    lens.position.set(0, -0.2, 0.28);
+    droneModel.add(lens);
+
     // 2. Arms (X-configuration)
-    const armLen = 0.9;
-    const armThick = 0.05;
+    const armLen = 0.95;
+    const armThick = 0.07; // Thicker for better visibility
     const angles = [Math.PI / 4, 3 * Math.PI / 4, 5 * Math.PI / 4, 7 * Math.PI / 4];
     
     angles.forEach((angle, idx) => {
@@ -303,16 +327,26 @@ function createDroneModel() {
         armGroup.add(rod);
 
         // Motor housing
-        const motorGeom = new THREE.CylinderGeometry(0.08, 0.08, 0.12, 16);
-        const motor = new THREE.Mesh(motorGeom, bodyMat);
-        motor.position.set(0, 0.06, armLen);
+        const motorGeom = new THREE.CylinderGeometry(0.09, 0.09, 0.14, 16);
+        const motor = new THREE.Mesh(motorGeom, motorMat);
+        motor.position.set(0, 0.07, armLen);
         armGroup.add(motor);
+
+        // Indicator LEDs underneath motors (Front: Red, Rear: Green)
+        const isFront = (idx === 0 || idx === 3);
+        const ledColor = isFront ? 0xff3b30 : 0x00ff88;
+        const motorLedGeom = new THREE.SphereGeometry(0.05, 8, 8);
+        const motorLedMat = new THREE.MeshBasicMaterial({ color: ledColor });
+        const motorLed = new THREE.Mesh(motorLedGeom, motorLedMat);
+        motorLed.position.set(0, -0.06, armLen); // Below the arm/motor
+        armGroup.add(motorLed);
 
         // Propeller blades
         const propGroup = new THREE.Group();
-        propGroup.position.set(0, 0.13, armLen);
+        propGroup.position.set(0, 0.15, armLen);
         
-        const bladeGeom = new THREE.BoxGeometry(0.7, 0.01, 0.04);
+        const bladeGeom = new THREE.BoxGeometry(0.75, 0.012, 0.05); // Thicker blades
+        const propMat = isFront ? propMatFront : propMatRear;
         const blade = new THREE.Mesh(bladeGeom, propMat);
         propGroup.add(blade);
         
@@ -323,8 +357,8 @@ function createDroneModel() {
         droneModel.add(armGroup);
     });
 
-    // Scale drone to look proportionate
-    droneModel.scale.set(1.2, 1.2, 1.2);
+    // Scale drone to look proportionate and clear
+    droneModel.scale.set(1.3, 1.3, 1.3); // Scaled up slightly
     
     // Add local axes helper
     addLocalAxes(droneModel);

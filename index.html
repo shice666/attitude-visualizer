@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>姿态解算 3D 可视化学习网 | Attitude Resolution Visualizer</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- Three.js and OrbitControls -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+</head>
+<body>
+
+    <svg style="display: none;">
+        <defs>
+            <linearGradient id="logo-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#ff007f" />
+                <stop offset="50%" stop-color="#535bf2" />
+                <stop offset="100%" stop-color="#00f0ff" />
+            </linearGradient>
+        </defs>
+    </svg>
+
+    <header>
+        <div class="logo-container">
+            <svg class="logo-icon" viewBox="0 0 24 24">
+                <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
+            </svg>
+            <h1>姿态解算 3D 可视化学习网</h1>
+        </div>
+        <div class="header-actions">
+            <button class="btn" id="btn-reset-att">
+                <span>🔄</span> 重置姿态
+            </button>
+            <button class="btn" id="btn-reset-cam">
+                <span>🎥</span> 重置视角
+            </button>
+        </div>
+    </header>
+
+    <main class="main-layout">
+        <!-- Left 3D Canvas area -->
+        <section class="viewport-area" id="viewport-container">
+            <canvas id="canvas3d"></canvas>
+
+            <!-- Floating Top Overlays -->
+            <div class="viewport-overlay">
+                <!-- Drag Mode Toggle -->
+                <div class="pill-selector">
+                    <button class="pill-option active" data-drag="rotate">
+                        <span>🔄</span> 鼠标旋转物体
+                    </button>
+                    <button class="pill-option" data-drag="orbit">
+                        <span>🎥</span> 鼠标旋转相机
+                    </button>
+                </div>
+
+                <!-- Custom Checkboxes -->
+                <div class="pill-selector">
+                    <label class="checkbox-container" style="padding: 0.25rem 0.75rem;">
+                        <input type="checkbox" id="chk-show-gimbal" checked>
+                        <span class="checkbox-custom"></span>
+                        <span style="font-size: 0.8rem; font-weight: 500; color: #fff;">显示万向环</span>
+                    </label>
+                    <label class="checkbox-container" style="padding: 0.25rem 0.75rem;">
+                        <input type="checkbox" id="chk-camera-lock">
+                        <span class="checkbox-custom"></span>
+                        <span style="font-size: 0.8rem; font-weight: 500; color: #fff;">相机跟随</span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Coordinate Legend (机体坐标系 Body Frame) -->
+            <div class="axes-legend">
+                <div class="legend-item">
+                    <div class="legend-color x"></div>
+                    <span style="color: var(--color-roll);">X_b 轴 (Roll - 横滚 - 前向)</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color y"></div>
+                    <span style="color: var(--color-pitch);">Y_b 轴 (Pitch - 俯仰 - 右向)</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color z"></div>
+                    <span style="color: var(--color-yaw);">Z_b 轴 (Yaw - 偏航 - 下向)</span>
+                </div>
+            </div>
+
+            <!-- HUD Instructions -->
+            <div class="hud-instructions">
+                <span><strong>左键拖拽：</strong> 旋转当前选中的对象 (物体或相机)</span>
+                <span><strong>右键/Shift+左键：</strong> 旋转相机视角</span>
+                <span><strong>鼠标滚轮：</strong> 放大 / 缩小视角</span>
+            </div>
+        </section>
+
+        <!-- Right Control Panel -->
+        <aside class="sidebar-panel">
+            <!-- Section 1: Model & Rotation Order -->
+            <div class="panel-section">
+                <div class="panel-title">
+                    <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+                    模型与旋转顺序
+                </div>
+                
+                <div class="form-group">
+                    <label style="margin-bottom: 0.5rem; display: block;">选择 3D 模型</label>
+                    <div class="pill-selector" style="box-shadow: none;">
+                        <button class="pill-option active" style="flex: 1; justify-content: center;" data-model="cube">
+                            📦 标定正方体
+                        </button>
+                        <button class="pill-option" style="flex: 1; justify-content: center;" data-model="drone">
+                            🚁 无人机模型
+                        </button>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="order-select" style="margin-bottom: 0.5rem; display: block;">欧拉角旋转顺序 (Euler Order)</label>
+                    <select id="order-select" class="input-select">
+                        <option value="YXZ">Y-X-Z (航空标准 Yaw -> Pitch -> Roll)</option>
+                        <option value="XYZ">X-Y-Z (先Pitch, 再Yaw, 后Roll)</option>
+                        <option value="ZYX">Z-Y-X (先Roll, 再Yaw, 后Pitch)</option>
+                        <option value="ZXY">Z-X-Y</option>
+                        <option value="YZX">Y-Z-X</option>
+                        <option value="XZY">X-Z-Y</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Section 2: Attitude Sliders -->
+            <div class="panel-section">
+                <div class="panel-title">
+                    <svg viewBox="0 0 24 24"><path d="M3 17v2h6v-2H3zM3 5v2h10V5H3zm10 16v-2h8v-2h-8v-2h-2v6h2zM7 9v2H3v2h4v2h2V9H7zm14 4v-2H11v2h10zm-6-4h2V7h4V5h-4V3h-2v6z"/></svg>
+                    姿态参数调整
+                </div>
+
+                <!-- Roll -->
+                <div class="form-group">
+                    <div class="form-row">
+                        <span class="angle-label-container">
+                            <span class="angle-dot roll"></span>
+                            <label>横滚角 (Roll - φ)</label>
+                        </span>
+                        <span class="angle-val-display roll-txt" id="val-roll">0.0°</span>
+                    </div>
+                    <div class="slider-container">
+                        <span style="font-size: 0.75rem; color: var(--text-muted);">-180°</span>
+                        <input type="range" id="slider-roll" min="-180" max="180" step="0.1" value="0">
+                        <span style="font-size: 0.75rem; color: var(--text-muted);">180°</span>
+                    </div>
+                </div>
+
+                <!-- Pitch -->
+                <div class="form-group">
+                    <div class="form-row">
+                        <span class="angle-label-container">
+                            <span class="angle-dot pitch"></span>
+                            <label>俯仰角 (Pitch - θ)</label>
+                        </span>
+                        <span class="angle-val-display pitch-txt" id="val-pitch">0.0°</span>
+                    </div>
+                    <div class="slider-container">
+                        <span style="font-size: 0.75rem; color: var(--text-muted);">-90°</span>
+                        <input type="range" id="slider-pitch" min="-90" max="90" step="0.1" value="0">
+                        <span style="font-size: 0.75rem; color: var(--text-muted);">90°</span>
+                    </div>
+                </div>
+
+                <!-- Yaw -->
+                <div class="form-group">
+                    <div class="form-row">
+                        <span class="angle-label-container">
+                            <span class="angle-dot yaw"></span>
+                            <label>偏航角 (Yaw - ψ)</label>
+                        </span>
+                        <span class="angle-val-display yaw-txt" id="val-yaw">0.0°</span>
+                    </div>
+                    <div class="slider-container">
+                        <span style="font-size: 0.75rem; color: var(--text-muted);">-180°</span>
+                        <input type="range" id="slider-yaw" min="-180" max="180" step="0.1" value="0">
+                        <span style="font-size: 0.75rem; color: var(--text-muted);">180°</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Section 3: Mathematical Representation -->
+            <div class="panel-section">
+                <div class="panel-title">
+                    <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-4 6h-4v2h4v2h-4v2h4v2H9V7h6v2z"/></svg>
+                    姿态数学表示
+                </div>
+
+                <!-- Quaternion Card -->
+                <div class="math-card">
+                    <div class="math-card-header">
+                        <span>四元数 (Quaternion)</span>
+                        <span style="color: var(--text-muted);">q = w + xi + yj + zk</span>
+                    </div>
+                    <div class="math-value-mono" style="display: grid; grid-template-columns: repeat(4, 1fr); text-align: center; font-size: 0.85rem;">
+                        <div>
+                            <span style="color: var(--text-muted); font-size: 0.75rem; display: block;">w</span>
+                            <span id="quat-w">1.0000</span>
+                        </div>
+                        <div>
+                            <span style="color: var(--color-roll); font-size: 0.75rem; display: block;">x</span>
+                            <span id="quat-x">0.0000</span>
+                        </div>
+                        <div>
+                            <span style="color: var(--color-pitch); font-size: 0.75rem; display: block;">y</span>
+                            <span id="quat-y">0.0000</span>
+                        </div>
+                        <div>
+                            <span style="color: var(--color-yaw); font-size: 0.75rem; display: block;">z</span>
+                            <span id="quat-z">0.0000</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Rotation Matrix Card -->
+                <div class="math-card">
+                    <div class="math-card-header">
+                        <span>旋转矩阵 (Rotation Matrix - R)</span>
+                        <span>3x3 Orthogonal Matrix</span>
+                    </div>
+                    <div class="matrix-container">
+                        <div class="matrix-brackets">
+                            <div class="matrix-cell" id="m00">1.0000</div>
+                            <div class="matrix-cell" id="m01">0.0000</div>
+                            <div class="matrix-cell" id="m02">0.0000</div>
+                            
+                            <div class="matrix-cell" id="m10">0.0000</div>
+                            <div class="matrix-cell" id="m11">1.0000</div>
+                            <div class="matrix-cell" id="m12">0.0000</div>
+                            
+                            <div class="matrix-cell" id="m20">0.0000</div>
+                            <div class="matrix-cell" id="m21">0.0000</div>
+                            <div class="matrix-cell" id="m22">1.0000</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Section 4: Experimental Demos -->
+            <div class="panel-section">
+                <div class="panel-title">
+                    <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-2 10h-4v4h-2v-4H7v-2h4V7h2v4h4v2z"/></svg>
+                    教学演示与实验
+                </div>
+                
+                <div class="gimbal-lock-banner">
+                    <div class="banner-header">
+                        <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
+                        万向锁演示 (Gimbal Lock)
+                    </div>
+                    <div class="banner-body">
+                        在航空坐标系下，当俯仰角 (Pitch) 达到 <strong>±90°</strong> 时，横滚 (Roll) 和偏航 (Yaw) 的转轴将会重合共面。这时系统失去了一个自由度，产生万向锁死锁。
+                    </div>
+                    <button class="btn btn-danger" id="btn-gimbal-lock">
+                        ⚡ 一键触发万向锁 (Pitch = 90°)
+                    </button>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Bottom educational drawer -->
+        <footer class="edu-drawer">
+            <div class="edu-grid">
+                <!-- Card 1: Euler Angles -->
+                <div class="edu-card">
+                    <h3><span>📐</span> 欧拉角与机体坐标系</h3>
+                    <p>
+                        本站严格遵循航空航天标准的**机体坐标系 (Body Frame)** 轴向与命名定义，使用三个绕特定轴的旋转角度来表示 3D 空间中的朝向：
+                    </p>
+                    <ul>
+                        <li><strong>Roll (横滚角 - φ)</strong>：绕机体 <strong>X 轴</strong> (前向/红) 旋转，对应机翼左右侧倾。</li>
+                        <li><strong>Pitch (俯仰角 - θ)</strong>：绕机体 <strong>Y 轴</strong> (右向/绿) 旋转，对应机头抬头低头。</li>
+                        <li><strong>Yaw (偏航角 - ψ)</strong>：绕机体 <strong>Z 轴</strong> (下向/蓝) 旋转，对应机头左右偏转。</li>
+                    </ul>
+                    <p style="margin-top: 0.8rem;">
+                        这与 3D 引擎和物理学中最标准的 **RGB 轴向色彩标准** 完全对应：X (Red) 对应横滚，Y (Green) 对应俯仰，Z (Blue) 对应偏航。
+                    </p>
+                </div>
+
+                <!-- Card 2: Gimbal Lock -->
+                <div class="edu-card">
+                    <h3><span>🔒</span> 万向锁的物理本质</h3>
+                    <p>
+                        本站的<strong>万向环可视化</strong>真实模拟了机械万向节的嵌套原理（默认外环 Yaw 包含中环 Pitch，中环包含内环 Roll）。
+                    </p>
+                    <p>
+                        当您点击 <strong>“一键触发万向锁”</strong> 后，中环 (Pitch) 偏转 90° 直立，导致最内层的环 (Roll) 的轴线变得与最外层的环 (Yaw) 的轴线完全平行。
+                    </p>
+                    <p>
+                        此时，无论您尝试滑动 Roll 还是 Yaw，物体都在绕同一个空间物理轴旋转。丢失的这个自由度就是所谓的“万向锁”现象。这会导致在惯性导航或姿态解算中数学方程出现奇异点。
+                    </p>
+                </div>
+
+                <!-- Card 3: Quaternions & Matrix -->
+                <div class="edu-card">
+                    <h3><span>🧮</span> 四元数与旋转矩阵</h3>
+                    <p>
+                        为了彻底解决万向锁带来的死锁和奇异点问题，现代 3D 引擎和解算算法采用<strong>四元数 (Quaternion)</strong> 和<strong>旋转矩阵 (Rotation Matrix)</strong> 来保存姿态：
+                    </p>
+                    <ul>
+                        <li><strong>四元数</strong>由一个实部 <code>w</code> 和三个虚部 <code>[x, y, z]</code> 组成。它表示绕空间中某一个轴旋转一定角度。四元数计算非常紧凑、支持平滑插值 (SLERP)，且绝不会发生万向锁。</li>
+                        <li><strong>旋转矩阵</strong>是一个 3×3 的正交矩阵。它的三列向量分别对应旋转后物体局部的 X, Y, Z 轴在世界坐标系下的单位投影，非常适合直接进行 3D 渲染和向量投影计算。</li>
+                    </ul>
+                </div>
+            </div>
+        </footer>
+    </main>
+
+    <!-- App Logic Link -->
+    <script src="app.js"></script>
+</body>
+</html>

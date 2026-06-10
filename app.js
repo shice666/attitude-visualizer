@@ -530,6 +530,7 @@ function setupUI() {
 
 // Drag interactions on canvas to rotate the object
 function setupCanvasInteractions(domElement) {
+    // Mouse Down - Capture phase to intercept before OrbitControls
     domElement.addEventListener('mousedown', (e) => {
         // Only trigger on left click
         if (e.button !== 0) return;
@@ -537,36 +538,41 @@ function setupCanvasInteractions(domElement) {
         // If mode is 'orbit', let OrbitControls handle it
         if (dragMode === 'orbit') return;
         
-        // Check if cursor is over sliders or GUI (pointer-events will handle, but safety check)
         isDragging = true;
         previousMousePosition = {
             x: e.clientX,
             y: e.clientY
         };
         
-        // Temporarily disable OrbitControls left-click rotation
-        controls.enabled = false;
-    });
+        // Stop event from propagating to OrbitControls
+        e.stopImmediatePropagation();
+    }, true);
 
-    window.addEventListener('mousemove', (e) => {
-        if (!isDragging) return;
+    // Touch Start - Capture phase for mobile devices
+    domElement.addEventListener('touchstart', (e) => {
+        if (dragMode === 'orbit') return;
+        if (e.touches.length !== 1) return; // Only track single-finger drags
         
-        const deltaMove = {
-            x: e.clientX - previousMousePosition.x,
-            y: e.clientY - previousMousePosition.y
+        isDragging = true;
+        previousMousePosition = {
+            x: e.touches[0].clientX,
+            y: e.touches[0].clientY
         };
+        
+        e.stopImmediatePropagation();
+    }, { capture: true, passive: false });
 
-        // Rotation speed factor
+    // Helper function to perform rotation update
+    const performRotation = (deltaX, deltaY) => {
         const speed = 0.005;
 
-        // Perform rotation in camera space to keep it intuitive
-        // Get camera right vector (X in camera space) and camera up vector (Y in camera space) in world space
+        // Get camera basis in world space
         const cameraRight = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
         const cameraUp = new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion);
 
         // Quaternion representing rotation around camera axes
-        const qX = new THREE.Quaternion().setFromAxisAngle(cameraRight, -deltaMove.y * speed);
-        const qY = new THREE.Quaternion().setFromAxisAngle(cameraUp, deltaMove.x * speed);
+        const qX = new THREE.Quaternion().setFromAxisAngle(cameraRight, -deltaY * speed);
+        const qY = new THREE.Quaternion().setFromAxisAngle(cameraUp, deltaX * speed);
 
         // Net change in rotation
         const deltaRotation = new THREE.Quaternion().multiplyQuaternions(qY, qX);
@@ -597,6 +603,18 @@ function setupCanvasInteractions(domElement) {
         }
 
         updateAttitude(true);
+    };
+
+    // Mouse Move on window
+    window.addEventListener('mousemove', (e) => {
+        if (!isDragging) return;
+        
+        const deltaMove = {
+            x: e.clientX - previousMousePosition.x,
+            y: e.clientY - previousMousePosition.y
+        };
+
+        performRotation(deltaMove.x, deltaMove.y);
 
         previousMousePosition = {
             x: e.clientX,
@@ -604,13 +622,36 @@ function setupCanvasInteractions(domElement) {
         };
     });
 
-    window.addEventListener('mouseup', () => {
+    // Touch Move on window
+    window.addEventListener('touchmove', (e) => {
+        if (!isDragging) return;
+        if (e.touches.length !== 1) return;
+
+        const deltaMove = {
+            x: e.touches[0].clientX - previousMousePosition.x,
+            y: e.touches[0].clientY - previousMousePosition.y
+        };
+
+        performRotation(deltaMove.x, deltaMove.y);
+
+        previousMousePosition = {
+            x: e.touches[0].clientX,
+            y: e.touches[0].clientY
+        };
+
+        // Prevent standard page scrolling while dragging 3D object
+        e.preventDefault();
+    }, { passive: false });
+
+    // Drag release
+    const endDrag = () => {
         if (isDragging) {
             isDragging = false;
-            // Restore OrbitControls
-            controls.enabled = true;
         }
-    });
+    };
+
+    window.addEventListener('mouseup', endDrag);
+    window.addEventListener('touchend', endDrag);
 }
 
 // Update UI numerical readouts, sliders, and 3D rings

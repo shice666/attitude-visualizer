@@ -36,7 +36,6 @@ document.addEventListener('DOMContentLoaded', () => {
     setupUI();
     updateAttitude();
     animate();
-    updateDebugStatus();
 });
 
 // Initialize Three.js scene
@@ -534,9 +533,6 @@ function setupCanvasInteractions(domElement) {
     // Canvas Pointer Down - Capture phase to intercept before OrbitControls
     domElement.addEventListener('pointerdown', (e) => {
         try {
-            // Visual log for debugging the exact click target on user's screen
-            showDebugError("Canvas PointerDown, Button: " + e.button + ", dragMode: " + dragMode);
-            
             // Only trigger on primary pointer (left click or touch/trackpad tap)
             if (e.button !== 0 && e.button !== -1) return; 
             
@@ -554,10 +550,8 @@ function setupCanvasInteractions(domElement) {
             
             // Stop event from propagating to OrbitControls
             e.stopImmediatePropagation();
-            
-            updateDebugStatus(); // Update overlay immediately
         } catch (err) {
-            showDebugError("PointerDown Error: " + err.message);
+            console.error("PointerDown Error:", err);
         }
     }, true);
 
@@ -604,7 +598,7 @@ function setupCanvasInteractions(domElement) {
 
             updateAttitude(true);
         } catch (err) {
-            showDebugError("PerformRotation Error: " + err.message + "\n" + err.stack);
+            console.error("PerformRotation Error:", err);
         }
     };
 
@@ -628,7 +622,7 @@ function setupCanvasInteractions(domElement) {
             if (e.cancelable) e.preventDefault();
             e.stopImmediatePropagation();
         } catch (err) {
-            showDebugError("PointerMove Error: " + err.message);
+            console.error("PointerMove Error:", err);
         }
     }, true);
 
@@ -637,11 +631,10 @@ function setupCanvasInteractions(domElement) {
         try {
             if (isDragging) {
                 isDragging = false;
-                updateDebugStatus();
                 e.stopImmediatePropagation();
             }
         } catch (err) {
-            showDebugError("PointerUp Error: " + err.message);
+            console.error("PointerUp Error:", err);
         }
     };
 
@@ -698,9 +691,6 @@ function updateAttitude(syncSliders = true) {
 
     // 5. Update 3D visual rotations of the gimbal rings
     applyRotationsToRings();
-    
-    // Sync debug status div
-    updateDebugStatus();
 }
 
 // Visual helper to color active portion of the slider range
@@ -753,54 +743,4 @@ function animate() {
     renderer.render(scene, camera);
 }
 
-// Global debug helper to display errors on the screen for easy troubleshooting
-function showDebugError(msg) {
-    let errDiv = document.getElementById('debug-error-log');
-    if (!errDiv) {
-        errDiv = document.createElement('div');
-        errDiv.id = 'debug-error-log';
-        errDiv.style.position = 'fixed';
-        errDiv.style.bottom = '10px';
-        errDiv.style.left = '10px';
-        errDiv.style.backgroundColor = 'rgba(255, 0, 0, 0.9)';
-        errDiv.style.color = 'white';
-        errDiv.style.padding = '10px';
-        errDiv.style.borderRadius = '5px';
-        errDiv.style.zIndex = '9999';
-        errDiv.style.fontFamily = 'monospace';
-        errDiv.style.fontSize = '12px';
-        errDiv.style.whiteSpace = 'pre-wrap';
-        errDiv.style.maxWidth = '90%';
-        document.body.appendChild(errDiv);
-    }
-    errDiv.innerText = msg;
-}
 
-// Global debug status logger to check event listeners and caching
-function updateDebugStatus() {
-    try {
-        let div = document.getElementById('debug-status');
-        if (!div) {
-            div = document.createElement('div');
-            div.id = 'debug-status';
-            div.style.position = 'fixed';
-            div.style.top = '10px';
-            div.style.right = '10px';
-            div.style.backgroundColor = 'rgba(0, 0, 0, 0.85)';
-            div.style.color = '#00ff55';
-            div.style.padding = '10px';
-            div.style.borderRadius = '8px';
-            div.style.fontSize = '12px';
-            div.style.fontFamily = 'monospace';
-            div.style.zIndex = '9999';
-            div.style.border = '1px solid rgba(0, 255, 85, 0.2)';
-            document.body.appendChild(div);
-        }
-        div.innerText = `[Debug Log (已更新)]\n` +
-                        `isDragging: ${isDragging}\n` +
-                        `dragMode: ${dragMode}\n` +
-                        `yaw: ${yaw.toFixed(3)}\n` +
-                        `pitch: ${pitch.toFixed(3)}\n` +
-                        `roll: ${roll.toFixed(3)}`;
-    } catch(e) {}
-}

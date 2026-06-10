@@ -65,6 +65,9 @@ function init3D() {
     controls.maxPolarAngle = Math.PI; // Full rotation
     controls.minDistance = 2;
     controls.maxDistance = 20;
+    
+    // Disable left-click camera rotation by default (default mode is object rotate)
+    controls.mouseButtons.LEFT = null;
 
     // Lighting
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
@@ -452,13 +455,11 @@ function setupUI() {
             opt.classList.add('active');
             dragMode = opt.dataset.drag;
             
-            // Enable/disable OrbitControls accordingly
+            // Configure OrbitControls left-click behavior
             if (dragMode === 'orbit') {
-                controls.enabled = true;
+                controls.mouseButtons.LEFT = THREE.MOUSE.ROTATE;
             } else {
-                // Keep controls enabled for zoom and right-click orbit, 
-                // but we handle left-click drag customly in setupCanvasInteractions
-                controls.enabled = true;
+                controls.mouseButtons.LEFT = null; // Disable left-click orbit in object-rotate mode
             }
         });
     });

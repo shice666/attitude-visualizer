@@ -532,121 +532,145 @@ function setupUI() {
 function setupCanvasInteractions(domElement) {
     // Mouse Down - Capture phase to intercept before OrbitControls
     domElement.addEventListener('mousedown', (e) => {
-        // Only trigger on left click
-        if (e.button !== 0) return;
-        
-        // If mode is 'orbit', let OrbitControls handle it
-        if (dragMode === 'orbit') return;
-        
-        isDragging = true;
-        previousMousePosition = {
-            x: e.clientX,
-            y: e.clientY
-        };
-        
-        // Stop event from propagating to OrbitControls
-        e.stopImmediatePropagation();
+        try {
+            // Only trigger on left click
+            if (e.button !== 0) return;
+            
+            // If mode is 'orbit', let OrbitControls handle it
+            if (dragMode === 'orbit') return;
+            
+            isDragging = true;
+            previousMousePosition = {
+                x: e.clientX,
+                y: e.clientY
+            };
+            
+            // Stop event from propagating to OrbitControls
+            e.stopImmediatePropagation();
+        } catch (err) {
+            showDebugError("MouseDown Error: " + err.message);
+        }
     }, true);
 
     // Touch Start - Capture phase for mobile devices
     domElement.addEventListener('touchstart', (e) => {
-        if (dragMode === 'orbit') return;
-        if (e.touches.length !== 1) return; // Only track single-finger drags
-        
-        isDragging = true;
-        previousMousePosition = {
-            x: e.touches[0].clientX,
-            y: e.touches[0].clientY
-        };
-        
-        e.stopImmediatePropagation();
+        try {
+            if (dragMode === 'orbit') return;
+            if (e.touches.length !== 1) return; // Only track single-finger drags
+            
+            isDragging = true;
+            previousMousePosition = {
+                x: e.touches[0].clientX,
+                y: e.touches[0].clientY
+            };
+            
+            e.stopImmediatePropagation();
+        } catch (err) {
+            showDebugError("TouchStart Error: " + err.message);
+        }
     }, { capture: true, passive: false });
 
     // Helper function to perform rotation update
     const performRotation = (deltaX, deltaY) => {
-        const speed = 0.005;
+        try {
+            const speed = 0.005;
 
-        // Get camera basis in world space
-        const cameraRight = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
-        const cameraUp = new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion);
+            // Get camera basis in world space
+            const cameraRight = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
+            const cameraUp = new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion);
 
-        // Quaternion representing rotation around camera axes
-        const qX = new THREE.Quaternion().setFromAxisAngle(cameraRight, -deltaY * speed);
-        const qY = new THREE.Quaternion().setFromAxisAngle(cameraUp, deltaX * speed);
+            // Quaternion representing rotation around camera axes
+            const qX = new THREE.Quaternion().setFromAxisAngle(cameraRight, -deltaY * speed);
+            const qY = new THREE.Quaternion().setFromAxisAngle(cameraUp, deltaX * speed);
 
-        // Net change in rotation
-        const deltaRotation = new THREE.Quaternion().multiplyQuaternions(qY, qX);
-        
-        // Apply rotation to the model's overall attitude quaternion
-        attitudeQuaternion.premultiply(deltaRotation);
-        attitudeQuaternion.normalize();
+            // Net change in rotation
+            const deltaRotation = new THREE.Quaternion().multiplyQuaternions(qY, qX);
+            
+            // Apply rotation to the model's overall attitude quaternion
+            attitudeQuaternion.premultiply(deltaRotation);
+            attitudeQuaternion.normalize();
 
-        // Decompose quaternion into Euler angles for selected order
-        const euler = new THREE.Euler().setFromQuaternion(attitudeQuaternion, selectedOrder);
-        pitch = euler.x;
-        yaw = euler.y;
-        roll = euler.z;
+            // Decompose quaternion into Euler angles for selected order
+            const euler = new THREE.Euler().setFromQuaternion(attitudeQuaternion, selectedOrder);
+            pitch = euler.x;
+            yaw = euler.y;
+            roll = euler.z;
 
-        // Keep angles normalized between [-PI, PI]
-        const normalizeAngle = (ang) => {
-            while (ang > Math.PI) ang -= 2 * Math.PI;
-            while (ang < -Math.PI) ang += 2 * Math.PI;
-            return ang;
-        };
-        pitch = normalizeAngle(pitch);
-        yaw = normalizeAngle(yaw);
-        roll = normalizeAngle(roll);
+            // Keep angles normalized between [-PI, PI]
+            const normalizeAngle = (ang) => {
+                while (ang > Math.PI) ang -= 2 * Math.PI;
+                while (ang < -Math.PI) ang += 2 * Math.PI;
+                return ang;
+            };
+            pitch = normalizeAngle(pitch);
+            yaw = normalizeAngle(yaw);
+            roll = normalizeAngle(roll);
 
-        // Check if we exited gimbal lock state
-        if (Math.abs(Math.abs(pitch) - Math.PI/2) > 0.05) {
-            document.getElementById('btn-gimbal-lock').classList.remove('active');
+            // Check if we exited gimbal lock state
+            if (Math.abs(Math.abs(pitch) - Math.PI/2) > 0.05) {
+                document.getElementById('btn-gimbal-lock').classList.remove('active');
+            }
+
+            updateAttitude(true);
+        } catch (err) {
+            showDebugError("PerformRotation Error: " + err.message + "\n" + err.stack);
         }
-
-        updateAttitude(true);
     };
 
     // Mouse Move on window
     window.addEventListener('mousemove', (e) => {
-        if (!isDragging) return;
-        
-        const deltaMove = {
-            x: e.clientX - previousMousePosition.x,
-            y: e.clientY - previousMousePosition.y
-        };
+        try {
+            if (!isDragging) return;
+            
+            const deltaMove = {
+                x: e.clientX - previousMousePosition.x,
+                y: e.clientY - previousMousePosition.y
+            };
 
-        performRotation(deltaMove.x, deltaMove.y);
+            performRotation(deltaMove.x, deltaMove.y);
 
-        previousMousePosition = {
-            x: e.clientX,
-            y: e.clientY
-        };
+            previousMousePosition = {
+                x: e.clientX,
+                y: e.clientY
+            };
+        } catch (err) {
+            showDebugError("MouseMove Error: " + err.message);
+        }
     });
 
     // Touch Move on window
     window.addEventListener('touchmove', (e) => {
-        if (!isDragging) return;
-        if (e.touches.length !== 1) return;
+        try {
+            if (!isDragging) return;
+            if (e.touches.length !== 1) return;
 
-        const deltaMove = {
-            x: e.touches[0].clientX - previousMousePosition.x,
-            y: e.touches[0].clientY - previousMousePosition.y
-        };
+            const deltaMove = {
+                x: e.touches[0].clientX - previousMousePosition.x,
+                y: e.touches[0].clientY - previousMousePosition.y
+            };
 
-        performRotation(deltaMove.x, deltaMove.y);
+            performRotation(deltaMove.x, deltaMove.y);
 
-        previousMousePosition = {
-            x: e.touches[0].clientX,
-            y: e.touches[0].clientY
-        };
+            previousMousePosition = {
+                x: e.touches[0].clientX,
+                y: e.touches[0].clientY
+            };
 
-        // Prevent standard page scrolling while dragging 3D object
-        e.preventDefault();
+            // Prevent standard page scrolling while dragging 3D object
+            e.preventDefault();
+        } catch (err) {
+            showDebugError("TouchMove Error: " + err.message);
+        }
     }, { passive: false });
 
     // Drag release
     const endDrag = () => {
-        if (isDragging) {
-            isDragging = false;
+        try {
+            if (isDragging) {
+                isDragging = false;
+            }
+        } catch (err) {
+            showDebugError("EndDrag Error: " + err.message);
         }
     };
 
@@ -752,4 +776,27 @@ function animate() {
     }
 
     renderer.render(scene, camera);
+}
+
+// Global debug helper to display errors on the screen for easy troubleshooting
+function showDebugError(msg) {
+    let errDiv = document.getElementById('debug-error-log');
+    if (!errDiv) {
+        errDiv = document.createElement('div');
+        errDiv.id = 'debug-error-log';
+        errDiv.style.position = 'fixed';
+        errDiv.style.bottom = '10px';
+        errDiv.style.left = '10px';
+        errDiv.style.backgroundColor = 'rgba(255, 0, 0, 0.9)';
+        errDiv.style.color = 'white';
+        errDiv.style.padding = '10px';
+        errDiv.style.borderRadius = '5px';
+        errDiv.style.zIndex = '9999';
+        errDiv.style.fontFamily = 'monospace';
+        errDiv.style.fontSize = '12px';
+        errDiv.style.whiteSpace = 'pre-wrap';
+        errDiv.style.maxWidth = '90%';
+        document.body.appendChild(errDiv);
+    }
+    errDiv.innerText = msg;
 }

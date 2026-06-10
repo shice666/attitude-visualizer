@@ -36,6 +36,7 @@ document.addEventListener('DOMContentLoaded', () => {
     setupUI();
     updateAttitude();
     animate();
+    updateDebugStatus();
 });
 
 // Initialize Three.js scene
@@ -726,6 +727,9 @@ function updateAttitude(syncSliders = true) {
 
     // 5. Update 3D visual rotations of the gimbal rings
     applyRotationsToRings();
+    
+    // Sync debug status div
+    updateDebugStatus();
 }
 
 // Visual helper to color active portion of the slider range
@@ -799,4 +803,33 @@ function showDebugError(msg) {
         document.body.appendChild(errDiv);
     }
     errDiv.innerText = msg;
+}
+
+// Global debug status logger to check event listeners and caching
+function updateDebugStatus() {
+    try {
+        let div = document.getElementById('debug-status');
+        if (!div) {
+            div = document.createElement('div');
+            div.id = 'debug-status';
+            div.style.position = 'fixed';
+            div.style.top = '10px';
+            div.style.right = '10px';
+            div.style.backgroundColor = 'rgba(0, 0, 0, 0.85)';
+            div.style.color = '#00ff55';
+            div.style.padding = '10px';
+            div.style.borderRadius = '8px';
+            div.style.fontSize = '12px';
+            div.style.fontFamily = 'monospace';
+            div.style.zIndex = '9999';
+            div.style.border = '1px solid rgba(0, 255, 85, 0.2)';
+            document.body.appendChild(div);
+        }
+        div.innerText = `[Debug Log (已更新)]\n` +
+                        `isDragging: ${isDragging}\n` +
+                        `dragMode: ${dragMode}\n` +
+                        `yaw: ${yaw.toFixed(3)}\n` +
+                        `pitch: ${pitch.toFixed(3)}\n` +
+                        `roll: ${roll.toFixed(3)}`;
+    } catch(e) {}
 }

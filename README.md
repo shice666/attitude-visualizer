@@ -1,5 +1,7 @@
 # Attitude Resolution Visualizer (姿态解算 3D 可视化学习网)
 
+> 🔗 **在线演示体验地址 (Live Demo)**: [https://shice666.github.io/attitude-visualizer/](https://shice666.github.io/attitude-visualizer/)
+
 这是一个专门用于学习和直观理解空间姿态解算（Euler Angles 欧拉角、Quaternions 四元数、Rotation Matrix 旋转矩阵、万向锁 Gimbal Lock）的交互式 3D 可视化网页应用。
 
 ## 🌟 特色功能

@@ -529,19 +529,16 @@ function setupUI() {
     });
 }
 
-// Drag interactions on canvas to rotate the object
+// Drag interactions on canvas to rotate the object (Unified PointerEvents)
 function setupCanvasInteractions(domElement) {
-    // Window Mouse Down - Capture phase to intercept before OrbitControls
-    window.addEventListener('mousedown', (e) => {
+    // Canvas Pointer Down - Capture phase to intercept before OrbitControls
+    domElement.addEventListener('pointerdown', (e) => {
         try {
             // Visual log for debugging the exact click target on user's screen
-            showDebugError("Clicked target: " + e.target.tagName + "#" + e.target.id + ", Button: " + e.button + ", dragMode: " + dragMode);
+            showDebugError("Canvas PointerDown, Button: " + e.button + ", dragMode: " + dragMode);
             
-            // Verify click target is the canvas by ID
-            if (e.target.id !== 'canvas3d') return;
-            
-            // Only trigger on left click
-            if (e.button !== 0) return;
+            // Only trigger on primary pointer (left click or touch/trackpad tap)
+            if (e.button !== 0 && e.button !== -1) return; 
             
             // If mode is 'orbit', let OrbitControls handle it
             if (dragMode === 'orbit') return;
@@ -552,34 +549,17 @@ function setupCanvasInteractions(domElement) {
                 y: e.clientY
             };
             
+            // Prevent scrolling/zooming default gestures on touch screen/trackpad
+            if (e.cancelable) e.preventDefault();
+            
             // Stop event from propagating to OrbitControls
             e.stopImmediatePropagation();
             
             updateDebugStatus(); // Update overlay immediately
         } catch (err) {
-            showDebugError("MouseDown Error: " + err.message);
+            showDebugError("PointerDown Error: " + err.message);
         }
     }, true);
-
-    // Window Touch Start - Capture phase for mobile devices
-    window.addEventListener('touchstart', (e) => {
-        try {
-            if (e.target.id !== 'canvas3d') return;
-            if (dragMode === 'orbit') return;
-            if (e.touches.length !== 1) return; // Only track single-finger drags
-            
-            isDragging = true;
-            previousMousePosition = {
-                x: e.touches[0].clientX,
-                y: e.touches[0].clientY
-            };
-            
-            e.stopImmediatePropagation();
-            updateDebugStatus(); // Update overlay immediately
-        } catch (err) {
-            showDebugError("TouchStart Error: " + err.message);
-        }
-    }, { capture: true, passive: false });
 
     // Helper function to perform rotation update
     const performRotation = (deltaX, deltaY) => {
@@ -628,8 +608,8 @@ function setupCanvasInteractions(domElement) {
         }
     };
 
-    // Mouse Move on window
-    window.addEventListener('mousemove', (e) => {
+    // Pointer Move on window - capture phase
+    window.addEventListener('pointermove', (e) => {
         try {
             if (!isDragging) return;
             
@@ -644,50 +624,31 @@ function setupCanvasInteractions(domElement) {
                 x: e.clientX,
                 y: e.clientY
             };
+            
+            if (e.cancelable) e.preventDefault();
+            e.stopImmediatePropagation();
         } catch (err) {
-            showDebugError("MouseMove Error: " + err.message);
+            showDebugError("PointerMove Error: " + err.message);
         }
-    });
+    }, true);
 
-    // Touch Move on window
-    window.addEventListener('touchmove', (e) => {
-        try {
-            if (!isDragging) return;
-            if (e.touches.length !== 1) return;
-
-            const deltaMove = {
-                x: e.touches[0].clientX - previousMousePosition.x,
-                y: e.touches[0].clientY - previousMousePosition.y
-            };
-
-            performRotation(deltaMove.x, deltaMove.y);
-
-            previousMousePosition = {
-                x: e.touches[0].clientX,
-                y: e.touches[0].clientY
-            };
-
-            // Prevent standard page scrolling while dragging 3D object
-            e.preventDefault();
-        } catch (err) {
-            showDebugError("TouchMove Error: " + err.message);
-        }
-    }, { passive: false });
-
-    // Drag release
-    const endDrag = () => {
+    // Pointer release - capture phase
+    const endDrag = (e) => {
         try {
             if (isDragging) {
                 isDragging = false;
+                updateDebugStatus();
+                e.stopImmediatePropagation();
             }
         } catch (err) {
-            showDebugError("EndDrag Error: " + err.message);
+            showDebugError("PointerUp Error: " + err.message);
         }
     };
 
-    window.addEventListener('mouseup', endDrag);
-    window.addEventListener('touchend', endDrag);
+    window.addEventListener('pointerup', endDrag, true);
+    window.addEventListener('pointercancel', endDrag, true);
 }
+
 
 // Update UI numerical readouts, sliders, and 3D rings
 function updateAttitude(syncSliders = true) {

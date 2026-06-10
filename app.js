@@ -531,9 +531,12 @@ function setupUI() {
 
 // Drag interactions on canvas to rotate the object
 function setupCanvasInteractions(domElement) {
-    // Mouse Down - Capture phase to intercept before OrbitControls
-    domElement.addEventListener('mousedown', (e) => {
+    // Window Mouse Down - Capture phase to intercept before OrbitControls
+    window.addEventListener('mousedown', (e) => {
         try {
+            // Verify click target is the canvas
+            if (e.target !== domElement) return;
+            
             // Only trigger on left click
             if (e.button !== 0) return;
             
@@ -548,14 +551,17 @@ function setupCanvasInteractions(domElement) {
             
             // Stop event from propagating to OrbitControls
             e.stopImmediatePropagation();
+            
+            updateDebugStatus(); // Update overlay immediately
         } catch (err) {
             showDebugError("MouseDown Error: " + err.message);
         }
     }, true);
 
-    // Touch Start - Capture phase for mobile devices
-    domElement.addEventListener('touchstart', (e) => {
+    // Window Touch Start - Capture phase for mobile devices
+    window.addEventListener('touchstart', (e) => {
         try {
+            if (e.target !== domElement) return;
             if (dragMode === 'orbit') return;
             if (e.touches.length !== 1) return; // Only track single-finger drags
             
@@ -566,6 +572,7 @@ function setupCanvasInteractions(domElement) {
             };
             
             e.stopImmediatePropagation();
+            updateDebugStatus(); // Update overlay immediately
         } catch (err) {
             showDebugError("TouchStart Error: " + err.message);
         }

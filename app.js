@@ -534,8 +534,11 @@ function setupCanvasInteractions(domElement) {
     // Window Mouse Down - Capture phase to intercept before OrbitControls
     window.addEventListener('mousedown', (e) => {
         try {
-            // Verify click target is the canvas
-            if (e.target !== domElement) return;
+            // Visual log for debugging the exact click target on user's screen
+            showDebugError("Clicked target: " + e.target.tagName + "#" + e.target.id + ", Button: " + e.button + ", dragMode: " + dragMode);
+            
+            // Verify click target is the canvas by ID
+            if (e.target.id !== 'canvas3d') return;
             
             // Only trigger on left click
             if (e.button !== 0) return;
@@ -561,7 +564,7 @@ function setupCanvasInteractions(domElement) {
     // Window Touch Start - Capture phase for mobile devices
     window.addEventListener('touchstart', (e) => {
         try {
-            if (e.target !== domElement) return;
+            if (e.target.id !== 'canvas3d') return;
             if (dragMode === 'orbit') return;
             if (e.touches.length !== 1) return; // Only track single-finger drags
             
